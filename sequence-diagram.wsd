@@ -1,0 +1,28 @@
+@startuml Process Flow
+Actor User
+participant "Computer Monitor" as cm
+participant "Smart Device" as sm
+participant "AR App" as arapp
+participant "OCR" as ocr
+participant "ARCore" as arcore
+
+User --> cm: Traverse source code
+
+loop
+    sm -> cm: Utilize camera to capture image of display
+    cm -> sm: Image of source code displayed on monitor
+    sm -> arapp: Image of source code
+    arapp -> ocr: Image of source code
+    ocr -> arapp: Text
+
+    alt If valid source code is identified
+        arapp -> arapp: Parse and link class and structure components
+        arapp -> arcore: Generate AR virtual model from components
+        arcore -> arapp: Virtual model
+        arapp -> sm: Virtual model display
+    end
+end
+
+User --> sm: View AR virtual model
+
+@enduml
