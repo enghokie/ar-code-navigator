@@ -1,34 +1,73 @@
-import org.bytedeco.javacpp.*
 import org.bytedeco.leptonica.*
 import org.bytedeco.tesseract.*
 import org.bytedeco.leptonica.global.leptonica.pixRead
-import org.bytedeco.tesseract.global.tesseract.*
+import kotlin.io.*
+import java.io.File
+import java.util.*
+
+
+val EXTENSIONS_SUPPORTED = arrayOf<String>("png", "jpeg", "jpg", "tiff", "bmp")
+val OUTPUT_DIRECTORY = File("output")
+
+
+class OcrData (imgFile: File? = null, pixMap: PIX? = null, text: String? = null) {
+    var imgFile: File? = imgFile
+    var pixMap: PIX? = pixMap
+    var text: String? = text
+}
+
+
+
+fun getPixMaps(path: String, ocrDataVec: Vector<OcrData>): Boolean {
+    val file = File(path)
+    if (file.isDirectory) {
+        val dirWalker = file.walk()
+        for (item in dirWalker) {
+            if (item.isDirectory) getPixMaps(item.name, ocrDataVec)
+            if (!EXTENSIONS_SUPPORTED.contains(item.extension.lowercase())) continue
+            ocrDataVec.add(OcrData(item, pixRead(item.path)))
+        }
+    }
+    else if (EXTENSIONS_SUPPORTED.contains(file.extension.lowercase())) {
+        ocrDataVec.add(OcrData(file, pixRead(file.path)))
+    }
+
+    return ocrDataVec.isNotEmpty()
+}
+
+
+fun usage(): String { return "Usage: java MainKt <path-to-source-code-image(s)>" }
+
 
 fun main(args: Array<String>) {
-    println("Hello World!")
+    println("CodeNavigator [Desktop]")
+    if (args.size != 1) throw Exception(usage())
 
-    // Try adding program arguments via Run/Debug configuration.
-    // Learn more about running applications: https://www.jetbrains.com/help/idea/running-applications.html.
-    println("Program arguments: ${args.joinToString()}")
+    // Initialize tesseract-ocr with English, without specifying tessdata path
+    val tessApi = TessBaseAPI()
+    if (tessApi.Init(null, "eng") != 0) throw Exception("Could not initialize tesseract-ocr API")
 
-        // Initialize tesseract-ocr with English, without specifying tessdata path
-        val tessApi = TessBaseAPI()
-        if (tessApi.Init(null, "eng") != 0)
-            throw Exception("Could not initialize tesseract-ocr API")
+    // Get pixel maps from images
+    var ocrDataVec = Vector<OcrData>()
+    if (!getPixMaps(args[0], ocrDataVec))
+        throw Exception("No images found in the provided path: ${args[0]}")
 
-        val filename: String = args[0]
-        val image: PIX = pixRead(if (args.size > 0) args[0] else "/usr/src/tesseract/testing/phototest.tif")
-        if (image.isNull)
-            throw Exception("Invalid image provided from filename: ".plus(filename))
+    // Perform OCR on pixel maps to convert them to text
+    if (!OUTPUT_DIRECTORY.exists()) OUTPUT_DIRECTORY.mkdir()
+    for (ocrData in ocrDataVec) {
+        tessApi.SetImage(ocrData.pixMap)
 
-        tessApi.SetImage(image)
-        val ocrText = tessApi.GetUTF8Text()
-        if (ocrText.isNull)
-            throw Exception("Unable to acquire OCR text from the given image")
+        var byteData = tessApi.GetUTF8Text()
+        ocrData.text = byteData.string
+        byteData.deallocate()
 
-        println("Ocr text processed:\n".plus(ocrText.string))
+        // Save the text from this image to a file in the current directory
+        val textFile = File(OUTPUT_DIRECTORY.path + "/" + ocrData.imgFile?.nameWithoutExtension + ".txt")
+        textFile.writeText(ocrData.text!!)
+    }
 
-        // Destroy used object and release memory
-        tessApi.End()
-        ocrText.deallocate()
+
+
+    // Destroy used object and release memory
+    tessApi.End()
 }
