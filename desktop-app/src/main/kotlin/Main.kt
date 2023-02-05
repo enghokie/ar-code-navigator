@@ -8,7 +8,7 @@ import java.util.*
 
 val EXTENSIONS_SUPPORTED = arrayOf<String>("png", "jpeg", "jpg", "tiff", "bmp")
 val OUTPUT_DIRECTORY = File("output")
-val CLASS_REGEX = "^class\\s+\\w+\\s+".toRegex()
+val CLASS_REGEX = "class\\s+\\w+\\s+".toRegex()
 
 
 class OcrData (imgFile: File? = null, pixMap: PIX? = null, text: String? = null) {
@@ -30,7 +30,7 @@ class CodeData {
 }
 
 
-fun parseCode(codeText: String, codeData: CodeData): Boolean {
+fun parseCommonCode(codeText: String, codeData: CodeData): Boolean {
     var curClass: ClassData? = null
     val codeStrings = codeText.split('\n')
     codestring@ for ((i, codeString) in codeStrings.withIndex()) {
@@ -39,7 +39,7 @@ fun parseCode(codeText: String, codeData: CodeData): Boolean {
             // TODO: Account for nested classes
             //if (curClass !== null) {
             //    subCodeText = codeStrings.subList(i, codeStrings.lastIndex).joinToString("\n")
-            //    parseCode(subCodeText, codeData)
+            //    parseCommonCode(subCodeText, codeData)
             //    continue
             //}
 
@@ -48,14 +48,15 @@ fun parseCode(codeText: String, codeData: CodeData): Boolean {
                 codeData.classes[className] = ClassData(className)
 
                 // Check for derived classes
-                val derClassNameIdx = when {
+                val parentClassNameIdx = when {
                     codeString.contains("public") -> codeString.indexOf("public") + "public".length + 1
                     codeString.contains("private") -> codeString.indexOf("private") + "private".length + 1
+                    codeString.contains("extends") -> codeString.indexOf("extends") + "extends".length + 1
                     else -> -1
                 }
-                if (derClassNameIdx != -1) {
-                    val derClassName = codeString.substring(derClassNameIdx, codeString.indexOf(' ', derClassNameIdx))
-                    codeData.classes[className]?.derivedClasses?.add(derClassName)
+                if (parentClassNameIdx != -1) {
+                    val parentClassName = codeString.substring(parentClassNameIdx, codeString.indexOf(' ', parentClassNameIdx))
+                    codeData.classes[className]?.derivedClasses?.add(parentClassName)
                 }
             }
 
@@ -74,7 +75,7 @@ fun parseCode(codeText: String, codeData: CodeData): Boolean {
             else if (codeString[classNameIdx + className.length] == '(') continue@codestring
 
             // TODO: Handle reference class objects whose class declaration hasn't been seen yet
-            if (codeString.contains(className)) curClass?.refClasses?.add(className)
+            curClass?.refClasses?.add(className)
         }
     }
 
@@ -100,12 +101,14 @@ fun getPixMaps(path: String, ocrDataVec: Vector<OcrData>): Boolean {
 }
 
 
-fun usage(): String { return "Usage: java MainKt <path-to-source-code-image(s)>" }
+fun usage(): String { return "Usage: java MainKt <path-to-source-code-image(s)> <language>" }
 
 
 fun main(args: Array<String>) {
     println("CodeNavigator [Desktop]")
-    if (args.size != 1) throw Exception(usage())
+    if (args.size != 2) throw Exception(usage())
+    val sourcePath = args[0]
+    val language = args[1]
 
     // Initialize tesseract-ocr with English, without specifying tessdata path
     val tessApi = TessBaseAPI()
@@ -113,8 +116,8 @@ fun main(args: Array<String>) {
 
     // Get pixel maps from images
     var ocrDataVec = Vector<OcrData>()
-    if (!getPixMaps(args[0], ocrDataVec))
-        throw Exception("No images found in the provided path: ${args[0]}")
+    if (!getPixMaps(sourcePath, ocrDataVec))
+        throw Exception("No images found in the provided path: $sourcePath")
 
     // Perform OCR on pixel maps to convert them to text
     if (!OUTPUT_DIRECTORY.exists()) OUTPUT_DIRECTORY.mkdir()
@@ -133,7 +136,10 @@ fun main(args: Array<String>) {
     // Parse and store class information from source code text
     var codeData = CodeData()
     for (ocrData in ocrDataVec) {
-        parseCode(ocrData.text?: "", codeData)
+        when (language.lowercase()) {
+            "c++", "cpp", "java" -> parseCommonCode(ocrData.text?: "", codeData)
+            else -> throw Exception("Unable to parse code for language $language")
+        }
     }
 
     // Log class architecture
