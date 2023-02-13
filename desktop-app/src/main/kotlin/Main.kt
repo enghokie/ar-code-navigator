@@ -192,6 +192,10 @@ fun main(args: Array<String>) {
         val textFile = File(outputDir.path + "/" + ocrData.imgFile?.nameWithoutExtension + extension)
         textFile.writeText(ocrData.text!!)
 
+        // Save the Tesseract pre-processed image to the current output directory
+        val preprocessedImage = tessApi.GetThresholdedImage()
+        pixWritePng("${textFile.parentFile.path}/${textFile.nameWithoutExtension}.png", preprocessedImage, 1.0f)
+
         // No longer need this pixel data
         ocrData.pixMap?.deallocate()
     }
