@@ -158,6 +158,12 @@ fun main(args: Array<String>) {
     if (args.size != 2) throw Exception(usage())
     val source = args[0]
     val language = args[1]
+    val extension = when (language.lowercase()) {
+        "c++", "cpp" -> ".hpp"
+        "java" -> ".java"
+        "kotlin" -> ".kt"
+        else -> throw Exception("Unable to parse code for language $language")
+    }
 
     // Initialize tesseract-ocr with English, without specifying tessdata path
     val tessApi = TessBaseAPI()
@@ -181,7 +187,9 @@ fun main(args: Array<String>) {
         ocrData.text = processOcr(tessApi, ocrData.pixMap!!)
 
         // Save the text from this image to a file in the current directory
-        val textFile = File(OUTPUT_DIRECTORY.path + "/" + ocrData.imgFile?.nameWithoutExtension + ".txt")
+        val outputDir = File(OUTPUT_DIRECTORY.name + "/${ocrData.imgFile?.parentFile?.name}")
+        if (!outputDir.exists()) outputDir.mkdir()
+        val textFile = File(outputDir.path + "/" + ocrData.imgFile?.nameWithoutExtension + extension)
         textFile.writeText(ocrData.text!!)
 
         // No longer need this pixel data
