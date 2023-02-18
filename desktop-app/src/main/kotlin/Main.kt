@@ -54,18 +54,25 @@ fun main(args: Array<String>) {
             val screenArea = Rectangle(Toolkit.getDefaultToolkit().screenSize)
             val screenImgBuffer = robot.createScreenCapture(screenArea)
             val pixMap = leptFrameConverter.convert(javaFrameConverter.convert(screenImgBuffer))
+
+            // Save the original image acquired to the current output directory
             imgCount += 1
+            val fileDir = File(OUTPUT_DIRECTORY.path + "/screen-code$imgCount")
+            if (!fileDir.exists()) fileDir.mkdirs()
+            val origImagePath = "${fileDir.path}/orig.png"
+            pixWritePng(origImagePath, pixMap, 1.0f)
+
 
             // Produce the code text with OCR
             val codeText = processOcr(tessApi, pixMap)
 
             // Save the text from this image to a file in the current output directory
-            val textFile = File(OUTPUT_DIRECTORY.path + "/screen-code$imgCount" + extension)
+            val textFile = File("${fileDir.path}/ocr-text${extension}")
             textFile.writeText(codeText)
 
             // Save the Tesseract pre-processed image to the current output directory
-            val preprocessedImage = tessApi.GetThresholdedImage()
-            pixWritePng("${textFile.parentFile.path}/${textFile.nameWithoutExtension}.png", preprocessedImage, 1.0f)
+            val tessPreprocessedImage = tessApi.GetThresholdedImage()
+            pixWritePng("${fileDir.path}/tesseract-preprocessed.png", tessPreprocessedImage, 1.0f)
 
             // Parse and process the code
             if (parseCode(language, codeText, codeData)) logClassHiararchy(codeData)
@@ -85,17 +92,18 @@ fun main(args: Array<String>) {
 
         // Perform OCR on pixel maps to convert them to text
         for (ocrData in ocrDataVec) {
+            val fileDir = File("${OUTPUT_DIRECTORY.path}/${ocrData.imgFile?.parentFile?.name}/${ocrData.imgFile?.nameWithoutExtension}")
+            if (!fileDir.exists()) fileDir.mkdirs()
+
             ocrData.text = processOcr(tessApi, ocrData.pixMap!!)
 
             // Save the text from this image to a file in the current directory
-            val outputDir = File(OUTPUT_DIRECTORY.name + "/${ocrData.imgFile?.parentFile?.name}")
-            if (!outputDir.exists()) outputDir.mkdir()
-            val textFile = File(outputDir.path + "/" + ocrData.imgFile?.nameWithoutExtension + extension)
+            val textFile = File("${fileDir.path}/ocr-text${extension}")
             textFile.writeText(ocrData.text!!)
 
             // Save the Tesseract pre-processed image to the current output directory
-            val preprocessedImage = tessApi.GetThresholdedImage()
-            pixWritePng("${textFile.parentFile.path}/${textFile.nameWithoutExtension}.png", preprocessedImage, 1.0f)
+            val tessPreprocessedImage = tessApi.GetThresholdedImage()
+            pixWritePng("${fileDir.path}/tesseract-preprocessed.png", tessPreprocessedImage, 1.0f)
 
             // No longer need this pixel data
             ocrData.pixMap?.deallocate()
