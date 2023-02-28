@@ -1,5 +1,4 @@
-import org.bytedeco.javacv.Java2DFrameConverter
-import org.bytedeco.javacv.LeptonicaFrameConverter
+import org.bytedeco.javacv.*
 import org.bytedeco.leptonica.global.leptonica.*
 import org.bytedeco.tesseract.*
 import java.awt.Rectangle
@@ -7,14 +6,15 @@ import java.awt.Robot
 import java.awt.Toolkit
 import java.io.File
 import java.util.*
+import javax.imageio.ImageIO
 import kotlin.io.*
 
 
 var OUTPUT_DIRECTORY = File("output")
+val TESSDATA_PATH = null //"C:/models/wild/tessdata/tessdata_best"
 
 
 fun usage(): String { return "Usage: java MainKt <source> <language>" }
-
 
 fun main(args: Array<String>) {
     println("CodeNavigator [Desktop]")
@@ -30,7 +30,7 @@ fun main(args: Array<String>) {
 
     // Initialize tesseract-ocr with English, without specifying tessdata path
     val tessApi = TessBaseAPI()
-    if (tessApi.Init(null, "eng") != 0) throw Exception("Could not initialize tesseract-ocr API")
+    if (tessApi.Init(TESSDATA_PATH, "eng") != 0) throw Exception("Could not initialize tesseract-ocr API")
     else if (!tessApi.SetVariable("load_system_dawg", "F")
         || !tessApi.SetVariable("load_freq_dawg", "F")) {
         throw Exception("Could not set Tesseract configurations")
@@ -40,8 +40,13 @@ fun main(args: Array<String>) {
     if (source == "screen") {
         // Initialize the Robot package object for screen capturing
         val robot = Robot()
-        val javaFrameConverter = Java2DFrameConverter()
-        val leptFrameConverter = LeptonicaFrameConverter()
+
+        // Get the screen dimensions
+        val screenRect = Rectangle(Toolkit.getDefaultToolkit().screenSize)
+        if (screenRect.width % 16 != 0 || screenRect.height % 9 != 0) {
+            screenRect.setSize(((screenRect.width / 16) * 16) + 16, ((screenRect.height / 9) * 9) + 9)
+        }
+        println("Capturing with screen resolution ${screenRect.width}x${screenRect.height}")
 
         // Set up the output code text directory from the parsed images
         OUTPUT_DIRECTORY = File(OUTPUT_DIRECTORY.name + "/screen")
@@ -51,9 +56,7 @@ fun main(args: Array<String>) {
         var imgCount = 0
         while (true) {
             // Capture the whole screen
-            val screenArea = Rectangle(Toolkit.getDefaultToolkit().screenSize)
-            val screenImgBuffer = robot.createScreenCapture(screenArea)
-            val pixMap = leptFrameConverter.convert(javaFrameConverter.convert(screenImgBuffer))
+            val screenImgBuffer = robot.createScreenCapture(screenRect)
 
             // Save the original image acquired to the current output directory
             imgCount += 1
@@ -62,6 +65,9 @@ fun main(args: Array<String>) {
             val origImagePath = "${fileDir.path}/orig.png"
             pixWritePng(origImagePath, pixMap, 1.0f)
 
+            val frame = Java2DFrameConverter().getFrame(screenImgBuffer, 1.0, true)
+            val pixMap = LeptonicaFrameConverter().convert(frame)
+            //pixWriteAutoFormat("${fileDir.path}/orig-pixmap.png", pixMap)
 
             // Produce the code text with OCR
             val codeText = processOcr(tessApi, pixMap)
