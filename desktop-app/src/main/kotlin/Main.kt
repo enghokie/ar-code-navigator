@@ -56,7 +56,9 @@ fun main(args: Array<String>) {
         var imgCount = 0
         while (true) {
             // Capture the whole screen
+            var start = System.currentTimeMillis()
             val screenImgBuffer = robot.createScreenCapture(screenRect)
+            println("Screen capturing took ${System.currentTimeMillis() - start}ms")
 
             // Save the original image acquired to the current output directory
             imgCount += 1
@@ -66,12 +68,16 @@ fun main(args: Array<String>) {
             if (!ImageIO.write(screenImgBuffer, "png", File(origImagePath)))
                 println("Couldn't write the original screen-captured image to output folder")
 
+            start = System.currentTimeMillis()
             val frame = Java2DFrameConverter().getFrame(screenImgBuffer, 1.0, true)
             val pixMap = LeptonicaFrameConverter().convert(frame)
+            println("Image conversions took ${System.currentTimeMillis() - start}ms")
             //pixWriteAutoFormat("${fileDir.path}/orig-pixmap.png", pixMap)
 
             // Produce the code text with OCR
+            start = System.currentTimeMillis()
             val codeText = processOcr(tessApi, pixMap)
+            println("OCR processing took ${System.currentTimeMillis() - start}ms")
 
             // Save the text from this image to a file in the current output directory
             val textFile = File("${fileDir.path}/ocr-text${extension}")
@@ -82,7 +88,9 @@ fun main(args: Array<String>) {
             pixWritePng("${fileDir.path}/tesseract-preprocessed.png", tessPreprocessedImage, 1.0f)
 
             // Parse and process the code
+            start = System.currentTimeMillis()
             if (parseCode(language, codeText, codeData)) logClassHiararchy(codeData)
+            println("Code parsing took ${System.currentTimeMillis() - start}ms")
 
             // No longer need this pixel data
             pixMap.deallocate()
