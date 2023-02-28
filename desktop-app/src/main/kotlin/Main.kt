@@ -63,7 +63,8 @@ fun main(args: Array<String>) {
             val fileDir = File(OUTPUT_DIRECTORY.path + "/screen-code$imgCount")
             if (!fileDir.exists()) fileDir.mkdirs()
             val origImagePath = "${fileDir.path}/orig.png"
-            pixWritePng(origImagePath, pixMap, 1.0f)
+            if (!ImageIO.write(screenImgBuffer, "png", File(origImagePath)))
+                println("Couldn't write the original screen-captured image to output folder")
 
             val frame = Java2DFrameConverter().getFrame(screenImgBuffer, 1.0, true)
             val pixMap = LeptonicaFrameConverter().convert(frame)
