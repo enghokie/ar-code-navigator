@@ -10,7 +10,6 @@ class ClassData (var name: String) {
     var refClasses = HashSet<String>()
 }
 
-
 class CodeData {
     var classes = HashMap<String, ClassData>()
 }
@@ -24,7 +23,6 @@ fun findCppParentClass(codeString: String): String? {
     return if (parentIdx == -1) null else codeString.substring(parentIdx, codeString.indexOf(' ', parentIdx))
 }
 
-
 fun findJavaParentClass(codeString: String): String? {
     val parentIdx = when {
         codeString.contains("extends") -> codeString.indexOf("extends") + "extends".length + 1
@@ -33,7 +31,6 @@ fun findJavaParentClass(codeString: String): String? {
     return if (parentIdx == -1) null else codeString.substring(parentIdx, codeString.indexOf(' ', parentIdx))
 }
 
-
 fun findKotlinParentClass(codeString: String): String? {
     val parentIdx = when {
         codeString.contains(") : ") -> codeString.indexOf(") : ") + ") : ".length
@@ -41,7 +38,6 @@ fun findKotlinParentClass(codeString: String): String? {
     }
     return if (parentIdx == -1) null else codeString.substring(parentIdx, codeString.indexOf("(", parentIdx))
 }
-
 
 fun parseCode(language: String, codeText: String, codeData: CodeData): Boolean {
     var parsedCode = false
@@ -91,7 +87,6 @@ fun parseCode(language: String, codeText: String, codeData: CodeData): Boolean {
 
     return parsedCode
 }
-
 
 fun logClassHiararchy(codeData: CodeData) {
     for (classData in codeData.classes.values) {
