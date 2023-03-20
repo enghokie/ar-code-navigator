@@ -7,7 +7,6 @@ import java.util.*
 import javax.imageio.ImageIO
 import kotlin.io.*
 
-
 var OUTPUT_DIRECTORY = File("output")
 val TESSDATA_PATH = null //"C:/models/wild/tessdata/tessdata_best"
 

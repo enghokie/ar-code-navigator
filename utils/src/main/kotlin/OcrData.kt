@@ -2,7 +2,6 @@ import org.bytedeco.javacv.*
 import org.bytedeco.leptonica.PIX
 import org.bytedeco.leptonica.global.leptonica
 import org.bytedeco.opencv.global.opencv_core.*
-import org.bytedeco.opencv.global.opencv_imgcodecs.imwrite
 import org.bytedeco.opencv.global.opencv_imgproc.*
 import org.bytedeco.opencv.opencv_core.*
 import org.bytedeco.tesseract.TessBaseAPI
