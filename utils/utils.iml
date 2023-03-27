@@ -226,5 +226,6 @@
     <orderEntry type="library" name="Maven: org.bytedeco:tesseract:macosx-x86_64:5.2.0-1.5.8" level="project" />
     <orderEntry type="library" name="Maven: org.bytedeco:tesseract:windows-x86:5.2.0-1.5.8" level="project" />
     <orderEntry type="library" name="Maven: org.bytedeco:tesseract:windows-x86_64:5.2.0-1.5.8" level="project" />
+    <orderEntry type="library" name="KotlinJavaRuntime" level="project" />
   </component>
 </module>

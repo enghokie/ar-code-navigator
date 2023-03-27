@@ -1,3 +1,5 @@
+package com.ar.codenavigator.utils
+
 val COMMON_CLASS_REGEX = "(^class|\\sclass)\\s+\\w+(\\s|\\()+".toRegex()
 
 
