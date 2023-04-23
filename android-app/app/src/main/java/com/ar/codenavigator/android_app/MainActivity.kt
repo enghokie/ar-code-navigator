@@ -1,122 +1,193 @@
 package com.ar.codenavigator.android_app
 
-import android.content.res.Resources
-import android.graphics.BitmapFactory
+import android.content.Context
+import android.graphics.Bitmap
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
-import com.ar.codenavigator.android_app.ui.theme.AndroidAppTheme
-import com.ar.codenavigator.utils.OcrInstance
+import android.view.MenuInflater
+import android.widget.Button
+import android.widget.PopupMenu
+import android.widget.TextView
+import android.widget.Toast
+import androidx.fragment.app.FragmentActivity
+import com.ar.codenavigator.utils.CodeData
+import com.google.ar.core.ArCoreApk
+import com.google.ar.core.ArCoreApk.Availability
+import com.google.ar.core.ArCoreApk.InstallStatus
+import com.google.ar.core.exceptions.UnavailableException
+import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationException
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Runnable
+import kotlinx.coroutines.async
 import java.io.File
 import java.io.FileOutputStream
-import java.io.FileWriter
-import java.io.OutputStream
-import java.io.OutputStreamWriter
+import java.io.InputStream
 
-class MainActivity : ComponentActivity() {
+
+class MainActivity :
+    FragmentActivity(),
+    CodeListFragment.Callback,
+    ARFragment.Callback {
+    // Google Play Services for AR if necessary.
+    private var _userRequestedInstall = true
+    private var _initCallbacks = false
+    private val _codeData: CodeData = CodeData()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            AndroidAppTheme {
-                // A surface container using the 'background' color from the theme
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colors.background
-                ) {
-                    File(applicationContext.filesDir, "tessconfigs").mkdir()
-                    val localTessfolder = File(applicationContext.filesDir, "tessdata")
-                    localTessfolder.mkdir()
-                    val outStrm = FileOutputStream(File(localTessfolder, "eng.traineddata"))
-                    val engModelStrm = assets.open("tessdata/eng.traineddata")
-                    val engModelBytes = engModelStrm.readBytes()
-                    println("BDUB - number of bytes read from the eng.traineddata mode: ${engModelBytes.size}")
-                    outStrm.write(engModelBytes)
+        setContentView(R.layout.activity_main)
 
-                    val ocrInstance = OcrInstance(applicationContext.filesDir.absolutePath)
-                    var painterImg = painterResource(R.drawable.shape_kotlin)
-                    var bitmap = BitmapFactory.decodeResource(applicationContext.resources, R.drawable.shape_kotlin)
-                    var processedText = ocrInstance.processOcr(bitmap)
-                    KotlinSampleCodeImages(painterImg = painterImg, processedText = processedText)
+        setupTessdata(applicationContext.filesDir, assets.open("tessdata/eng.traineddata"))
+    }
+
+    override fun onResumeFragments() {
+        super.onResumeFragments()
+
+        if (!_initCallbacks) {
+            val arFrag: ARFragment =
+                supportFragmentManager.findFragmentById(R.id.fragmentAR) as ARFragment
+            arFrag?.setupButtonCallback(findViewById<Button>(R.id.captureButton))
+
+            val imageFrag: CodeListFragment = supportFragmentManager.findFragmentById(R.id.fragmentOne) as CodeListFragment
+            val langButton: Button = findViewById<Button>(R.id.languageButton)
+            langButton.setOnClickListener {button ->
+                val popup = PopupMenu(applicationContext, button)
+                popup.setOnMenuItemClickListener { menuItem ->
+                    imageFrag.setListViewCodeLanguage(menuItem.title.toString())
+                    langButton.text = "Code | ${menuItem.title}"
+                    true
                 }
+
+                val inflater: MenuInflater = popup.menuInflater
+                inflater.inflate(R.menu.code_menu, popup.menu)
+                popup.show()
             }
+
+            _initCallbacks = true
+        }
+    }
+
+    override fun onItemSelected(id: Int) {
+        GlobalScope.async {
+            val detailsFrag: CodeTextFragment = supportFragmentManager.findFragmentById(R.id.fragmentTwo) as CodeTextFragment
+            val arFrag: ARFragment = supportFragmentManager.findFragmentById(R.id.fragmentAR) as ARFragment
+
+            val ocrText = detailsFrag.doOcr(id, _codeData)
+            runOnUiThread(Runnable {
+                findViewById<TextView>(R.id.ocrText)?.text = ocrText
+                findViewById<TextView>(R.id.hierarchyText)?.text = _codeData.formattedText()
+
+                arFrag.renderCodeModels(id, _codeData)
+            })
+        }
+    }
+
+    override fun onCapturedImage(bitmap: Bitmap) {
+        GlobalScope.async {
+            val imageFrag: CodeListFragment =
+                supportFragmentManager.findFragmentById(R.id.fragmentOne) as CodeListFragment
+            imageFrag.updateCapturedImage(bitmap)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        // ARCore requires camera permission to operate.
+        if (!CameraPermissionHelper.hasCameraPermission(this)) {
+            CameraPermissionHelper.requestCameraPermission(this)
+            return
+        }
+
+        // Ensure that Google Play Services for AR and ARCore device profile data are
+        // installed and up to date.
+        try {
+            if (_userRequestedInstall) {
+                val arSupported =
+                    isARCoreSupportedAndUpToDate(applicationContext, this, _userRequestedInstall)
+                _userRequestedInstall = false
+                if (!arSupported)  {
+                    Toast.makeText(this, "ARCore not supported", Toast.LENGTH_LONG)
+                        .show()
+                    return
+                }
+
+                Toast.makeText(this, "ARCore supported!", Toast.LENGTH_LONG)
+                    .show()
+            }
+        } catch (e: UnavailableUserDeclinedInstallationException) {
+            // Display an appropriate message to the user and return gracefully.
+            print("User declined AR session - unable to proceed: $e")
+            Toast.makeText(this, "User declined AR session - unable to proceed: $e", Toast.LENGTH_LONG)
+                .show()
+            return
+        } catch (e: Exception) {
+            print("AR session exception: $e")
+            Toast.makeText(this, "AR session exception: $e", Toast.LENGTH_LONG)
+                .show()
+            return  // mSession remains null, since session creation has failed.
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        results: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, results)
+        if (!CameraPermissionHelper.hasCameraPermission(this)) {
+            Toast.makeText(this, "Camera permission is needed to run this application", Toast.LENGTH_LONG)
+                .show()
+            if (!CameraPermissionHelper.shouldShowRequestPermissionRationale(this)) {
+                // Permission denied with checking "Do not ask again".
+                CameraPermissionHelper.launchPermissionSettings(this)
+            }
+            finish()
         }
     }
 }
 
-@Composable
-fun Text(text: String) {
-    Text(text = text)
+fun setupTessdata(appFileDir: File, engModelStrm: InputStream) {
+    val localTessfolder = File(appFileDir, "tessdata")
+    localTessfolder.mkdir()
+
+    val outStrm = FileOutputStream(File(localTessfolder, "eng.traineddata"))
+    val engModelBytes = engModelStrm.readBytes()
+    outStrm.write(engModelBytes)
 }
 
-@Composable
-fun KotlinSampleCodeImages(modifier: Modifier = Modifier, painterImg: Painter, processedText: String) {
-    //val shapeImg = painterResource(R.drawable.shape_kotlin)
-    //val circleImg = painterResource(R.drawable.circle_kotlin)
-    //val triangleImg = painterResource(R.drawable.triangle_kotlin)
-    //val rectangleSquareImg = painterResource(R.drawable.rectangle_and_square_kotlin)
-    //val shapeContainerImg = painterResource(R.drawable.shapecontainer_kotlin)
-
-    //val shapeCodeTxt = ocrInstance.processOcr(ocrInstance.bitmapToPix(BitmapFactory.decodeResource(
-    //    Resources.getSystem(), R.drawable.shape_kotlin)))
-
-    Column(
-        modifier = modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.Start
-    ) {
-        Image(
-            painter = painterImg,
-            contentDescription = null,
-            modifier = Modifier.background(Color.Black).fillMaxWidth()
-        )
-        Text(
-            text = processedText
-        )
-        /*
-        Image(
-            painter = circleImg,
-            contentDescription = null,
-            modifier = Modifier.background(Color.Black).fillMaxWidth()
-        )
-        Image(
-            painter = triangleImg,
-            contentDescription = null,
-            modifier = Modifier.background(Color.Black).fillMaxWidth()
-        )
-        Image(
-            painter = rectangleSquareImg,
-            contentDescription = null,
-            modifier = Modifier.background(Color.Black).fillMaxWidth()
-        )
-        Image(
-            painter = shapeContainerImg,
-            contentDescription = null,
-            modifier = Modifier.background(Color.Black).fillMaxWidth()
-        )
-         */
-    }
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun DefaultPreview() {
-    AndroidAppTheme {
-        KotlinSampleCodeImages(painterImg = painterResource(R.drawable.shape_kotlin), processedText = "Test")
+// Verify that ARCore is installed and using the current version.
+private fun isARCoreSupportedAndUpToDate(context: Context, activity: MainActivity, userRequested: Boolean): Boolean {
+    when (ArCoreApk.getInstance().checkAvailability(context)) {
+        Availability.SUPPORTED_INSTALLED -> return true
+        Availability.SUPPORTED_APK_TOO_OLD, Availability.SUPPORTED_NOT_INSTALLED -> {
+            try {
+                // Request ARCore installation or update if needed.
+                return when (ArCoreApk.getInstance().requestInstall(activity, userRequested)) {
+                    InstallStatus.INSTALL_REQUESTED -> {
+                        print("ARCore installation requested.")
+                        false
+                    }
+                    InstallStatus.INSTALLED -> true
+                }
+            } catch (e: UnavailableException) {
+                print("ARCore not installed: $e")
+                Toast.makeText(context, "ARCore not installed: $e", Toast.LENGTH_LONG)
+                    .show()
+            }
+            return false
+        }
+        Availability.UNSUPPORTED_DEVICE_NOT_CAPABLE -> {
+            // This device is not supported for AR.
+            print("ARCore not supported with this device")
+            Toast.makeText(context, "ARCore not supported on this device", Toast.LENGTH_LONG)
+                .show()
+            return false
+        }
+        Availability.UNKNOWN_CHECKING, Availability.UNKNOWN_ERROR, Availability.UNKNOWN_TIMED_OUT -> {
+            print("ARCore unknown error occurred")
+            Toast.makeText(context, "ARCore unknown error occurred", Toast.LENGTH_LONG)
+                .show()
+            return false
+        }
     }
 }

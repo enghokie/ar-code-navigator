@@ -1,0 +1,59 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.3"
+        android:orientation="horizontal">
+    <fragment
+        android:id="@+id/fragmentOne"
+        android:name="com.ar.codenavigator.android_app.CodeListFragment"
+        android:layout_height="match_parent"
+        android:layout_width="0dp"
+        android:layout_weight="0.5"
+        tools:layout="@layout/code_list_fragment" />
+
+    <fragment
+        android:id="@+id/fragmentTwo"
+        android:name="com.ar.codenavigator.android_app.CodeTextFragment"
+        android:layout_height="match_parent"
+        android:layout_width="0dp"
+        android:layout_weight="0.5"
+        tools:layout="@layout/code_text" />
+    </LinearLayout>
+
+    <RelativeLayout
+        android:layout_height="0dp"
+        android:layout_width="match_parent"
+        android:layout_weight="0.7">
+
+    <fragment
+        android:id="@+id/fragmentAR"
+        android:name="com.ar.codenavigator.android_app.ARFragment"
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        tools:layout="@layout/fragment_ar" />
+
+    <Button
+        android:id="@+id/captureButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:layout_marginLeft="10dp"
+        android:text="Capture"/>
+
+    <Button
+        android:id="@+id/languageButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/captureButton"
+        android:layout_marginTop="5dp"
+        android:layout_marginLeft="10dp"
+        android:text="Code | Kotlin"/>
+
+    </RelativeLayout>
+</LinearLayout>

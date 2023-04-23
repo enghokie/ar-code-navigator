@@ -1,7 +1,7 @@
 package com.ar.codenavigator.utils
 
 import android.graphics.Bitmap
-import com.googlecode.leptonica.android.*
+import com.googlecode.leptonica.android.Pix
 import com.googlecode.leptonica.android.ReadFile.readFile
 import com.googlecode.tesseract.android.TessBaseAPI
 import java.io.File
