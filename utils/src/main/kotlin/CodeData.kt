@@ -1,38 +1,70 @@
 val COMMON_CLASS_REGEX = "(^class|\\sclass)\\s+\\w+(\\s|\\()+".toRegex()
 
 
-class ClassData (var name: String) {
-    var parentClasses = HashSet<String>()
-    var refClasses = HashSet<String>()
-}
+data class ClassData (
+    val name: String,
+    var parentClasses: HashSet<String> = HashSet<String>(),
+    var refClasses: HashSet<String> = HashSet<String>()
+)
 
 class CodeData {
     var classes = HashMap<String, ClassData>()
+
+    override fun toString(): String {
+        var classHierarchy: String = ""
+        for (classData in classes.values) {
+            classHierarchy += "${classData.name} class details:"
+            classHierarchy += "\n\tParent classes:"
+            for (parentClass in classData.parentClasses)
+                classHierarchy += "\n\t\t$parentClass"
+
+            classHierarchy += "\n\tReference classes:"
+            for (refClass in classData.refClasses)
+                classHierarchy += "\n\t\t$refClass"
+
+            classHierarchy += "\n\n"
+        }
+
+        return classHierarchy
+    }
 }
 
 fun findCppParentClass(codeString: String): String? {
+    val compare1 = "public "
+    val compare2 = "private "
     val parentIdx = when {
-        codeString.contains("public") -> codeString.indexOf("public") + "public".length + 1
-        codeString.contains("private") -> codeString.indexOf("private") + "private".length + 1
+        codeString.contains(compare1) -> codeString.indexOf(compare1) + compare1.length
+        codeString.contains(compare2) -> codeString.indexOf(compare2) + compare2.length
         else -> -1
     }
     return if (parentIdx == -1) null else codeString.substring(parentIdx, codeString.indexOf(' ', parentIdx))
 }
 
 fun findJavaParentClass(codeString: String): String? {
+    val compare1 = "extends "
     val parentIdx = when {
-        codeString.contains("extends") -> codeString.indexOf("extends") + "extends".length + 1
+        codeString.contains(compare1) -> codeString.indexOf(compare1) + compare1.length
         else -> -1
     }
     return if (parentIdx == -1) null else codeString.substring(parentIdx, codeString.indexOf(' ', parentIdx))
 }
 
 fun findKotlinParentClass(codeString: String): String? {
+    val compare1 = " : public "
+    val compare2 = ") : "
     val parentIdx = when {
-        codeString.contains(") : ") -> codeString.indexOf(") : ") + ") : ".length
+        codeString.contains(compare1) -> codeString.indexOf(compare1) + compare1.length
+        codeString.contains(compare2) -> codeString.indexOf(compare2) + compare2.length
         else -> -1
     }
-    return if (parentIdx == -1) null else codeString.substring(parentIdx, codeString.indexOf("(", parentIdx))
+
+    return if (parentIdx == -1) {
+        null
+    } else {
+        val idx1 = codeString.indexOf('(', parentIdx)
+        val idx2 = codeString.indexOf(' ', parentIdx)
+        if (idx1 != -1) codeString.substring(parentIdx, idx1) else codeString.substring(parentIdx, idx2)
+    }
 }
 
 fun parseCode(language: String, codeText: String, codeData: CodeData): Boolean {
@@ -85,11 +117,5 @@ fun parseCode(language: String, codeText: String, codeData: CodeData): Boolean {
 }
 
 fun logClassHiararchy(codeData: CodeData) {
-    for (classData in codeData.classes.values) {
-        println("${classData.name} class details:")
-        println("\tParent classes:")
-        for (parentClass in classData.parentClasses) println("\t\t$parentClass")
-        println("\tReference classes:")
-        for (refClass in classData.refClasses) println("\t\t$refClass")
-    }
+    print(codeData.toString())
 }
