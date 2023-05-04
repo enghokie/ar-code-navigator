@@ -13,7 +13,7 @@ import androidx.fragment.app.Fragment
 
 
 class CodeListFragment : Fragment() {
-    private var _codeLang: String = "Kotlin"
+    private var _codeLang: String = "kotlin"
     private var _kotlinItems: MutableList<Item>? = null
     private var _javaItems: MutableList<Item>? = null
     private var _cppItems: MutableList<Item>? = null
@@ -81,11 +81,12 @@ class CodeListFragment : Fragment() {
             )
         }
 
+        val curItems = _kotlinItems!!.toMutableList()
         if (_listViewAdapter == null) {
             _listViewAdapter = context?.let {
                 ListViewAdapter(
                     it,
-                    _kotlinItems!!
+                    curItems
                 )
             }
         }
@@ -99,13 +100,13 @@ class CodeListFragment : Fragment() {
         listView.choiceMode = ListView.CHOICE_MODE_SINGLE
         listView.setOnItemClickListener { _, _, position, _ ->
             callback?.apply{ onItemSelected(when(_codeLang) {
-                "Kotlin" -> {
+                "kotlin" -> {
                     _kotlinItems!![position].picture
                 }
-                "Java" -> {
+                "java" -> {
                     _javaItems!![position].picture
                 }
-                "CPP" -> {
+                "cpp" -> {
                     _cppItems!![position].picture
                 }
                 else -> {
@@ -141,27 +142,31 @@ class CodeListFragment : Fragment() {
     }
 
     fun setListViewCodeLanguage(lang: String) {
+        var lowerLang = lang.lowercase()
         _listViewAdapter?.apply {
-            when(lang) {
-                "Kotlin" -> {
+            when(lowerLang) {
+                "kotlin" -> {
                     clear()
                     addAll(_kotlinItems!!)
                 }
-                "Java" -> {
+                "java" -> {
                     clear()
                     addAll(_javaItems!!)
                 }
-                "CPP" -> {
+                "cpp" -> {
                     clear()
                     addAll(_cppItems!!)
                 }
                 else -> {
+                    lowerLang = ""
                     return
                 }
             }
 
-            _codeLang = lang
-            notifyDataSetChanged()
+            if (lowerLang.isNotEmpty()) {
+                _codeLang = lowerLang
+                notifyDataSetChanged()
+            }
         }
     }
 }
