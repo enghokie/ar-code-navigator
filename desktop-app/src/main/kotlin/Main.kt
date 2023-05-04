@@ -1,11 +1,10 @@
-import org.bytedeco.leptonica.global.leptonica.*
+import org.bytedeco.leptonica.global.leptonica.pixWritePng
 import java.awt.Rectangle
 import java.awt.Robot
 import java.awt.Toolkit
 import java.io.File
 import java.util.*
 import javax.imageio.ImageIO
-import kotlin.io.*
 
 var OUTPUT_DIRECTORY = File("output")
 val TESSDATA_PATH = null //"C:/models/wild/tessdata/tessdata_best"
